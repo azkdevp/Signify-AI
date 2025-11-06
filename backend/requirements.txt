@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+google-cloud-aiplatform
+mediapipe
+opencv-python-headless
+numpy
+google-generativeai
+python-dotenv
