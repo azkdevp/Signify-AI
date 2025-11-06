@@ -1,4 +1,4 @@
-// ===== SIGNIFY MAIN.JS (Final Version) =====
+// ===== SIGNIFY MAIN.JS (Final + Fixed) =====
 
 // --- Theme & Config ---
 const defaultConfig = {
@@ -36,7 +36,8 @@ function createParticles() {
 // --- Global Variables ---
 let cameraActive = false;
 let videoElement, canvasElement, canvasCtx;
-let backendURL = "https://signify-backend-532930094893.asia-south1.run.app/translate"; 
+const backendURL =
+  "https://signify-backend-532930094893.asia-south1.run.app/translate";
 
 const demoButton = document.getElementById("demoButton");
 const gestureOutput = document.getElementById("result1");
@@ -104,22 +105,38 @@ hands.onResults(async (results) => {
 
 // --- Camera Setup ---
 async function startCamera() {
+  const cameraDiv = document.querySelector(".camera-frame");
+  cameraDiv.innerHTML = "";
+
+  // Create video and canvas
   videoElement = document.createElement("video");
   videoElement.width = 640;
   videoElement.height = 480;
   videoElement.autoplay = true;
+  videoElement.style.display = "block";
+  videoElement.style.borderRadius = "12px";
+  videoElement.style.objectFit = "cover";
+  videoElement.style.width = "640px";
+  videoElement.style.height = "480px";
 
   canvasElement = document.createElement("canvas");
   canvasElement.width = 640;
   canvasElement.height = 480;
+  canvasElement.style.position = "absolute";
+  canvasElement.style.top = "0";
+  canvasElement.style.left = "0";
+  canvasElement.style.pointerEvents = "none";
+
+  cameraDiv.style.position = "relative";
+  cameraDiv.appendChild(videoElement);
+  cameraDiv.appendChild(canvasElement);
   canvasCtx = canvasElement.getContext("2d");
 
-  const cameraDiv = document.querySelector(".camera-frame");
-  cameraDiv.innerHTML = "";
-  cameraDiv.appendChild(canvasElement);
-
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    // Force front camera
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: 640, height: 480 },
+    });
     videoElement.srcObject = stream;
 
     const camera = new Camera(videoElement, {
@@ -182,7 +199,7 @@ demoButton.addEventListener("click", () => {
   }
 });
 
-// --- Smooth Scroll for Nav Links ---
+// --- Smooth Scroll ---
 document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
   anchor.addEventListener("click", function (e) {
     e.preventDefault();
@@ -191,7 +208,7 @@ document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
   });
 });
 
-// --- Scroll Animations (Feature Cards / Stats) ---
+// --- Scroll Animations ---
 const observerOptions = { threshold: 0.1, rootMargin: "0px 0px -50px 0px" };
 const observer = new IntersectionObserver((entries) => {
   entries.forEach((entry) => {
