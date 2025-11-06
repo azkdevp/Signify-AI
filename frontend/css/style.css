@@ -154,6 +154,7 @@ body {
       justify-content: center;
       overflow: hidden;
       perspective: 1000px;
+      padding: 8rem;    
     }
 
     .hero-content {
