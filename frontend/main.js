@@ -1,4 +1,4 @@
-// ===== SIGNIFY MAIN.JS (Final + Fixed) =====
+// ===== SIGNIFY MAIN.JS =====
 
 // --- Theme & Config ---
 const defaultConfig = {
@@ -11,7 +11,7 @@ const defaultConfig = {
   font_size: 16,
   hero_headline: "Bridging Silence with AI Revolution",
   hero_subheadline:
-    "Transform sign language into universal communication with cutting-edge AI powered by Google Gemini, MediaPipe, and Cloud Run technology.",
+    "Transform sign language into universal communication with cutting-edge AI powered by Google Gemini, MediaPipe, and Cloud Run.",
   cta_primary_text: "Experience the Magic",
   nav_logo: "Signify",
   footer_text: "© 2025 Signify — Revolutionizing Communication with AI",
@@ -24,49 +24,66 @@ function createParticles() {
   const particlesContainer = document.getElementById("particles");
   if (!particlesContainer) return;
   for (let i = 0; i < 50; i++) {
-    const particle = document.createElement("div");
-    particle.className = "particle";
-    particle.style.left = Math.random() * 100 + "%";
-    particle.style.animationDelay = Math.random() * 15 + "s";
-    particle.style.animationDuration = Math.random() * 10 + 10 + "s";
-    particlesContainer.appendChild(particle);
+    const p = document.createElement("div");
+    p.className = "particle";
+    p.style.left = Math.random() * 100 + "%";
+    p.style.animationDelay = Math.random() * 15 + "s";
+    p.style.animationDuration = Math.random() * 10 + 10 + "s";
+    particlesContainer.appendChild(p);
   }
 }
 
-// --- Global Variables ---
+// --- Globals ---
 let cameraActive = false;
 let videoElement, canvasElement, canvasCtx;
-const backendURL =
+let backendURL =
   "https://signify-backend-532930094893.asia-south1.run.app/translate";
 
 const demoButton = document.getElementById("demoButton");
 const gestureOutput = document.getElementById("result1");
 
-// --- Initialize MediaPipe Hands ---
+// --- Debounce backend calls (avoid spamming) ---
+let lastSent = 0;
+const SEND_INTERVAL_MS = 700;
+
+// --- MediaPipe Hands ---
 const hands = new Hands({
-  locateFile: (file) =>
-    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
 });
 hands.setOptions({
   maxNumHands: 1,
-  minDetectionConfidence: 0.7,
-  minTrackingConfidence: 0.7,
+  minDetectionConfidence: 0.5, // relaxed for reliability
+  minTrackingConfidence: 0.5,
 });
 
 // --- Simple Rule-Based Gesture Classifier ---
 function classifyGesture(landmarks) {
   if (!landmarks || landmarks.length < 21) return "unknown";
+
   const wrist = landmarks[0];
-  const indexTip = landmarks[8];
   const thumbTip = landmarks[4];
+  const indexTip = landmarks[8];
   const middleTip = landmarks[12];
+  const ringTip = landmarks[16];
+  const pinkyTip = landmarks[20];
 
-  const yDiff = Math.abs(indexTip.y - thumbTip.y);
-  const xDiff = Math.abs(indexTip.x - thumbTip.x);
+  // helper
+  const aboveWrist = (pt) => pt.y < wrist.y;
 
-  if (yDiff < 0.05 && xDiff < 0.05) return "ok";
-  if (indexTip.y < wrist.y && middleTip.y < wrist.y) return "hello";
+  // Wave/Hello: most fingers above wrist
+  const fingersUp =
+    [indexTip, middleTip, ringTip, pinkyTip].filter(aboveWrist).length >= 3;
+  if (fingersUp) return "hello";
+
+  // OK-ish pinch (thumb & index near each other)
+  const dist =
+    Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y) +
+    Math.abs(indexTip.z - thumbTip.z);
+  if (dist < 0.08) return "ok";
+
+  // Leftward “love” heuristic (thumb+index left of wrist)
   if (thumbTip.x < wrist.x && indexTip.x < wrist.x) return "love";
+
   return "unknown";
 }
 
@@ -82,60 +99,62 @@ hands.onResults(async (results) => {
     canvasElement.height
   );
 
-  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+  const count = results.multiHandLandmarks?.length || 0;
+  // Debug: see detection status
+  console.log("🔍 Frame hands:", count);
+
+  if (count > 0) {
     for (const landmarks of results.multiHandLandmarks) {
       drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
         color: "#00fff0",
         lineWidth: 3,
       });
-      drawLandmarks(canvasCtx, landmarks, {
-        color: "#8B5CF6",
-        lineWidth: 1,
-      });
+      drawLandmarks(canvasCtx, landmarks, { color: "#8B5CF6", lineWidth: 1 });
 
       const gesture = classifyGesture(landmarks);
+      console.log("🖐 Gesture:", gesture);
+
       if (gesture !== "unknown") {
         updateGestureUI(gesture);
-        await sendGestureToBackend(gesture);
+
+        const now = Date.now();
+        if (now - lastSent > SEND_INTERVAL_MS) {
+          lastSent = now;
+          await sendGestureToBackend(gesture);
+        }
       }
     }
+  } else {
+    gestureOutput.querySelector(".result-gesture").innerText = "…";
+    gestureOutput.querySelector(".result-meaning").innerText =
+      "Show your hand to the camera";
+    gestureOutput.querySelector(".result-emoji").innerText = "🖐️";
   }
   canvasCtx.restore();
 });
 
 // --- Camera Setup ---
 async function startCamera() {
-  const cameraDiv = document.querySelector(".camera-frame");
-  cameraDiv.innerHTML = "";
-
-  // Create video and canvas
   videoElement = document.createElement("video");
   videoElement.width = 640;
   videoElement.height = 480;
   videoElement.autoplay = true;
-  videoElement.style.display = "block";
-  videoElement.style.borderRadius = "12px";
-  videoElement.style.objectFit = "cover";
-  videoElement.style.width = "640px";
-  videoElement.style.height = "480px";
+  videoElement.playsInline = true;
+  videoElement.muted = true;
 
   canvasElement = document.createElement("canvas");
   canvasElement.width = 640;
   canvasElement.height = 480;
-  canvasElement.style.position = "absolute";
-  canvasElement.style.top = "0";
-  canvasElement.style.left = "0";
-  canvasElement.style.pointerEvents = "none";
-
-  cameraDiv.style.position = "relative";
-  cameraDiv.appendChild(videoElement);
-  cameraDiv.appendChild(canvasElement);
   canvasCtx = canvasElement.getContext("2d");
 
+  const cameraDiv = document.querySelector(".camera-frame");
+  cameraDiv.innerHTML = "";
+  cameraDiv.appendChild(canvasElement);
+
   try {
-    // Force front camera
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: 640, height: 480 },
+      audio: false,
     });
     videoElement.srcObject = stream;
 
@@ -146,16 +165,17 @@ async function startCamera() {
       width: 640,
       height: 480,
     });
-    camera.start();
+
+    await camera.start();
     cameraActive = true;
-    console.log("✅ Camera started successfully");
+    console.log("✅ Camera started");
   } catch (err) {
     console.error("Camera error:", err);
     alert("Please allow camera access to continue the demo.");
   }
 }
 
-// --- UI Update Helpers ---
+// --- UI Helpers ---
 function updateGestureUI(gesture) {
   gestureOutput.querySelector(".result-gesture").innerText =
     gesture.toUpperCase();
@@ -165,26 +185,29 @@ function updateGestureUI(gesture) {
 function displayGeminiResponse(data) {
   if (data && data.text) {
     gestureOutput.querySelector(".result-meaning").innerText = data.text;
-    gestureOutput.querySelector(".result-emoji").innerText =
-      data.emoji || "🤖";
+    gestureOutput.querySelector(".result-emoji").innerText = data.emoji || "🤖";
+  } else {
+    gestureOutput.querySelector(".result-meaning").innerText =
+      "No response from AI.";
+    gestureOutput.querySelector(".result-emoji").innerText = "🤖";
   }
 }
 
-// --- Backend Connection ---
+// --- Backend ---
 async function sendGestureToBackend(gesture) {
   try {
-    const response = await fetch(backendURL, {
+    const res = await fetch(backendURL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gesture }),
     });
-    const data = await response.json();
+    const data = await res.json();
     console.log("Gemini:", data);
     displayGeminiResponse(data);
   } catch (err) {
     console.error("Backend error:", err);
     gestureOutput.querySelector(".result-meaning").innerText =
-      "⚠️ Unable to reach backend. Check your Cloud Run URL.";
+      "⚠️ Unable to reach backend. Check Cloud Run URL.";
   }
 }
 
@@ -201,9 +224,9 @@ demoButton.addEventListener("click", () => {
 
 // --- Smooth Scroll ---
 document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-  anchor.addEventListener("click", function (e) {
+  anchor.addEventListener("click", (e) => {
     e.preventDefault();
-    const target = document.querySelector(this.getAttribute("href"));
+    const target = document.querySelector(anchor.getAttribute("href"));
     if (target) target.scrollIntoView({ behavior: "smooth" });
   });
 });
@@ -231,11 +254,11 @@ createParticles();
 onConfigChange(config);
 
 // --- Dynamic Style Binding ---
-async function onConfigChange(config) {
-  document.body.style.background = config.background_color;
-  document.body.style.color = config.text_color;
-  document.body.style.fontFamily = `${config.font_family}, sans-serif`;
-  document.body.style.fontSize = `${config.font_size}px`;
+function onConfigChange(cfg) {
+  document.body.style.background = cfg.background_color;
+  document.body.style.color = cfg.text_color;
+  document.body.style.fontFamily = `${cfg.font_family}, sans-serif`;
+  document.body.style.fontSize = `${cfg.font_size}px`;
 
   const logo = document.getElementById("nav-logo");
   const headline = document.getElementById("hero-headline");
@@ -243,9 +266,9 @@ async function onConfigChange(config) {
   const cta = document.getElementById("cta-primary");
   const footer = document.getElementById("footer-text");
 
-  if (logo) logo.textContent = config.nav_logo;
-  if (headline) headline.textContent = config.hero_headline;
-  if (subheadline) subheadline.textContent = config.hero_subheadline;
-  if (cta) cta.textContent = config.cta_primary_text;
-  if (footer) footer.textContent = config.footer_text;
+  if (logo) logo.textContent = cfg.nav_logo;
+  if (headline) headline.textContent = cfg.hero_headline;
+  if (subheadline) subheadline.textContent = cfg.hero_subheadline;
+  if (cta) cta.textContent = cfg.cta_primary_text;
+  if (footer) footer.textContent = cfg.footer_text;
 }
