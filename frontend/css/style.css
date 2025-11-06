@@ -147,14 +147,14 @@ body {
 
     /* Hero Section - Revolutionary Design */
     .hero {
+      padding: 8rem; 
       position: relative;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      perspective: 1000px;
-      padding: 8rem;    
+      perspective: 1000px;   
     }
 
     .hero-content {
