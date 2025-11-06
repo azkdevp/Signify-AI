@@ -3,20 +3,17 @@
 Signify AI transforms how the hearing and deaf communities communicate.
 It recognizes **hand gestures in real time** through **MediaPipe Vision Tasks** and interprets them into **human-friendly language using Gemini 1.5 Flash**, all hosted seamlessly on **Google Cloud Run**.
 
----
 
 ## 🚀 Live Deployment
 
 * **Backend (FastAPI on Cloud Run):** [https://signify-backend-532930094893.asia-south1.run.app](https://signify-backend-532930094893.asia-south1.run.app)
 * **Frontend (Local Demo):** HTML + CSS + JS + MediaPipe (camera-based gesture capture)
 
----
 
 ## 💡 Vision
 
 Bridging accessibility with AI — enabling anyone, anywhere, to communicate through sign language effortlessly and inclusively.
 
----
 
 ## 🧠 System Overview
 
@@ -28,7 +25,6 @@ Bridging accessibility with AI — enabling anyone, anywhere, to communicate thr
 | **Language Model**      | Generates natural translation + emoji             | Gemini 1.5 Flash (Latest)   |
 | **Response Delivery**   | Returns friendly JSON → Text + Emoji              | HTTPS (JSON API)            |
 
----
 
 ## 🏗️ Architecture
 
@@ -49,7 +45,6 @@ User Gesture  →  MediaPipe Detection  →  JS Frontend
 **AI:** Google Gemini 1.5 Flash (Latest Model)
 **Infrastructure:** Docker • Google Cloud Run • Artifact Registry • Cloud Build
 
----
 
 ## ⚙️ Local Setup
 
@@ -72,7 +67,6 @@ cd ../frontend
 open index.html   # or simply drag into Chrome
 ```
 
----
 
 ## ☁️ Cloud Deployment
 
@@ -85,7 +79,6 @@ gcloud run deploy signify-backend \
   --port 8080
 ```
 
----
 
 ## 🧪 API Endpoints
 
@@ -112,7 +105,6 @@ curl -X POST https://signify-backend-532930094893.asia-south1.run.app/translate 
 }
 ```
 
----
 
 ## 🌍 Impact
 
@@ -120,7 +112,6 @@ curl -X POST https://signify-backend-532930094893.asia-south1.run.app/translate 
 * **Education:** Enables interactive learning for sign interpretation
 * **Healthcare & Public Services:** Facilitates inclusive, barrier-free communication
 
----
 
 ## 🤝 Acknowledgments
 
