@@ -105,7 +105,7 @@ curl -X POST https://signify-backend-532930094893.asia-south1.run.app/translate 
 }
 ```
 
-##👨‍💻 Author
+## 👨‍💻 Author
 Azkhan Abdul Salam
 ComputerScience Undergraduate · HealthTech Innovator
 
