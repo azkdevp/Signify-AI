@@ -6,22 +6,18 @@
     <title>Signify - AI Sign Language Revolution</title>
 
     <!-- Google Font -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- MediaPipe + Drawing Utils -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+    <!-- MediaPipe: load exact files and in the right order -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 
-
-    <!-- Custom stylesheet -->
-    <link rel="stylesheet" href="css/style.css" />
+    <!-- Custom stylesheet (path fixed to root) -->
+    <link rel="stylesheet" href="./style.css" />
 
     <!-- Favicon -->
     <link
@@ -68,9 +64,7 @@
           technology.
         </p>
         <div class="hero-cta">
-          <a href="#demo" class="cta-primary" id="cta-primary"
-            >Experience the Magic</a
-          >
+          <a href="#demo" class="cta-primary" id="cta-primary">Experience the Magic</a>
           <a href="#features" class="cta-secondary">Discover Features</a>
         </div>
       </div>
@@ -124,9 +118,7 @@
         </div>
 
         <div class="demo-controls">
-          <button class="control-button" id="demoButton">
-            Start AI Recognition
-          </button>
+          <button class="control-button" id="demoButton">Start AI Recognition</button>
         </div>
       </div>
     </section>
@@ -143,9 +135,7 @@
             <div class="feature-icon">🧠</div>
             <h3 class="feature-title">AI-Powered Recognition</h3>
             <p class="feature-description">
-              Advanced machine learning algorithms powered by Google Gemini
-              provide 99.7% accuracy in gesture recognition across multiple sign
-              languages.
+              Advanced machine learning algorithms powered by Google Gemini.
             </p>
           </div>
 
@@ -153,8 +143,7 @@
             <div class="feature-icon">⚡</div>
             <h3 class="feature-title">Real-Time Processing</h3>
             <p class="feature-description">
-              Lightning-fast translation with sub-100ms latency using MediaPipe
-              and Cloud Run infrastructure for seamless communication.
+              Fast, low-latency translation using MediaPipe and Cloud Run infrastructure.
             </p>
           </div>
 
@@ -162,8 +151,7 @@
             <div class="feature-icon">🌍</div>
             <h3 class="feature-title">Multi-Language Support</h3>
             <p class="feature-description">
-              Supports ASL, BSL, JSL, and 15+ international sign languages with
-              continuous learning capabilities.
+              Built to support major sign languages with continual improvements.
             </p>
           </div>
 
@@ -171,8 +159,7 @@
             <div class="feature-icon">📱</div>
             <h3 class="feature-title">Cross-Platform</h3>
             <p class="feature-description">
-              Works seamlessly across web, mobile, and desktop platforms with
-              responsive design and offline capabilities.
+              Works across web and mobile with a responsive design.
             </p>
           </div>
 
@@ -180,8 +167,7 @@
             <div class="feature-icon">🔒</div>
             <h3 class="feature-title">Privacy-First</h3>
             <p class="feature-description">
-              End-to-end encryption with local processing options. Your
-              conversations remain private and secure.
+              Local processing path with optional cloud-enhanced responses.
             </p>
           </div>
 
@@ -189,8 +175,7 @@
             <div class="feature-icon">♿</div>
             <h3 class="feature-title">Accessibility Focus</h3>
             <p class="feature-description">
-              Built with the Deaf community, featuring customizable UI, voice
-              synthesis, and educational tools.
+              Customizable UI and inclusive design principles.
             </p>
           </div>
         </div>
@@ -206,16 +191,16 @@
             <div class="stat-label">Deaf Individuals Worldwide</div>
           </div>
           <div class="stat-item">
-            <div class="stat-number">99.7%</div>
-            <div class="stat-label">Recognition Accuracy</div>
+            <div class="stat-number">Real-time</div>
+            <div class="stat-label">On-device recognition</div>
           </div>
           <div class="stat-item">
-            <div class="stat-number">15+</div>
-            <div class="stat-label">Sign Languages Supported</div>
+            <div class="stat-number">Gemini</div>
+            <div class="stat-label">Natural language explanations</div>
           </div>
           <div class="stat-item">
-            <div class="stat-number">50ms</div>
-            <div class="stat-label">Average Response Time</div>
+            <div class="stat-number">Cloud Run</div>
+            <div class="stat-label">Scales on demand</div>
           </div>
         </div>
       </div>
@@ -238,7 +223,7 @@
       </div>
     </footer>
 
-    <!-- Custom Script -->
-    <script src="main.js"></script>
+    <!-- App Script (load after MediaPipe) -->
+    <script src="./main.js"></script>
   </body>
 </html>
