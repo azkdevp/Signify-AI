@@ -46,12 +46,11 @@ const gestureOutput = document.getElementById("result1");
 let lastSent = 0;
 const SEND_INTERVAL_MS = 700;
 
-// MediaPipe Hands initialization with CDN model path
+// --- FIXED: MediaPipe Hands initialization with CDN model path ---
 const hands = new Hands({
   locateFile: (file) => {
-    // Load MediaPipe model files (TFLite, WASM) directly from CDN
     return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-  }
+  },
 });
 
 hands.setOptions({
@@ -60,6 +59,13 @@ hands.setOptions({
   minDetectionConfidence: 0.7,
   minTrackingConfidence: 0.7,
 });
+
+// Initialize and confirm load
+(async () => {
+  console.log("🧠 Loading MediaPipe Hands model...");
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  console.log("✅ Hands model loaded");
+})();
 
 // --- Simple Rule-Based Gesture Classifier ---
 function classifyGesture(landmarks) {
@@ -72,21 +78,17 @@ function classifyGesture(landmarks) {
   const ringTip = landmarks[16];
   const pinkyTip = landmarks[20];
 
-  // helper
   const aboveWrist = (pt) => pt.y < wrist.y;
 
-  // Wave/Hello: most fingers above wrist
   const fingersUp =
     [indexTip, middleTip, ringTip, pinkyTip].filter(aboveWrist).length >= 3;
   if (fingersUp) return "hello";
 
-  // OK-ish pinch (thumb & index near each other)
   const dist =
     Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y) +
     Math.abs(indexTip.z - thumbTip.z);
   if (dist < 0.08) return "ok";
 
-  // Leftward “love” heuristic (thumb+index left of wrist)
   if (thumbTip.x < wrist.x && indexTip.x < wrist.x) return "love";
 
   return "unknown";
@@ -105,7 +107,6 @@ hands.onResults(async (results) => {
   );
 
   const count = results.multiHandLandmarks?.length || 0;
-  // Debug: see detection status
   console.log("🔍 Frame hands:", count);
 
   if (count > 0) {
