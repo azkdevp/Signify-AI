@@ -46,14 +46,19 @@ const gestureOutput = document.getElementById("result1");
 let lastSent = 0;
 const SEND_INTERVAL_MS = 700;
 
-// --- MediaPipe Hands ---
+// MediaPipe Hands initialization with CDN model path
 const hands = new Hands({
-  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+  locateFile: (file) => {
+    // Load MediaPipe model files (TFLite, WASM) directly from CDN
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+  }
 });
+
 hands.setOptions({
-  maxNumHands: 1,
-  minDetectionConfidence: 0.5, // relaxed for reliability
-  minTrackingConfidence: 0.5,
+  maxNumHands: 2,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.7,
 });
 
 // --- Simple Rule-Based Gesture Classifier ---
