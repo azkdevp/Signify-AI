@@ -108,16 +108,23 @@ function classifyGesture(landmarks) {
 
   const fingersUpCount = [indexTip, middleTip, ringTip, pinkyTip].filter(above).length;
 
-  // HELLO: open palm (≥4 fingers up, thumb not pinching)
+  // --- HELLO: open palm ---
   if (fingersUpCount >= 4 && dist(thumbTip, indexTip) > 0.09) return "hello";
 
-  // LOVE (🤟): index & pinky up, middle down
+  // --- LOVE (🤟) ---
   const indexUp = above(indexTip);
   const pinkyUp = above(pinkyTip);
   const middleDown = !above(middleTip);
   if (indexUp && pinkyUp && middleDown) return "love";
 
-  // OK: thumb touching index (loose threshold)
+  // --- GOOD/YES 👍 ---
+  const thumbUp = thumbTip.y < wrist.y && dist(thumbTip, indexTip) > 0.08;
+  const fingersClosed = [indexTip, middleTip, ringTip, pinkyTip].every(
+    (p) => p.y > wrist.y
+  );
+  if (thumbUp && fingersClosed) return "good";
+
+  // --- OK 👌 ---
   if (dist(thumbTip, indexTip) < 0.055) return "ok";
 
   return "unknown";
