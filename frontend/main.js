@@ -55,7 +55,7 @@ const RATE_LIMIT_COOLDOWN_MS = 60000; // pause 60s after 429
 
 // --- Inference throttle (fixes lag) ---
 let lastPredictionTime = 0;
-const PREDICTION_INTERVAL = 80; // ~12–15 FPS, smooth + low CPU
+const PREDICTION_INTERVAL = 70; // ~12–15 FPS, smooth + low CPU
 
 // --- Init HandLandmarker (fast WASM) ---
 async function initHandTracking() {
