@@ -1,6 +1,11 @@
-// ===== SIGNIFY MAIN.JS =====
+// ===== SIGNIFY MAIN.JS (HandLandmarker, Fast) =====
+import {
+  FilesetResolver,
+  HandLandmarker,
+  DrawingUtils,
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
 
-// --- Theme & Config ---
+// --- Theme & Config (unchanged) ---
 const defaultConfig = {
   background_color: "#000000",
   accent_color: "#00FFF0",
@@ -16,10 +21,9 @@ const defaultConfig = {
   nav_logo: "Signify",
   footer_text: "© 2025 Signify — Revolutionizing Communication with AI",
 };
-
 const config = window.elementSdk ? window.elementSdk.config : defaultConfig;
 
-// --- Particles Background ---
+// --- Particles (unchanged) ---
 function createParticles() {
   const particlesContainer = document.getElementById("particles");
   if (!particlesContainer) return;
@@ -35,39 +39,52 @@ function createParticles() {
 
 // --- Globals ---
 let cameraActive = false;
-let videoElement, canvasElement, canvasCtx;
+let videoEl, canvasEl, ctx, drawingUtils, handLandmarker;
 let backendURL =
   "https://signify-backend-532930094893.asia-south1.run.app/translate";
 
 const demoButton = document.getElementById("demoButton");
 const gestureOutput = document.getElementById("result1");
 
-// --- Debounce backend calls (avoid spamming) ---
+// Debounce calls to backend to avoid spamming
 let lastSent = 0;
 const SEND_INTERVAL_MS = 700;
 
-// --- FIXED: MediaPipe Hands initialization with CDN model path ---
-const hands = new Hands({
-  locateFile: (file) => {
-    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-  },
-});
+// --- Init HandLandmarker (fast WASM) ---
+async function initHandTracking() {
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+  );
 
-hands.setOptions({
-  maxNumHands: 2,
-  modelComplexity: 1,
-  minDetectionConfidence: 0.7,
-  minTrackingConfidence: 0.7,
-});
+  handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath:
+        // Official hosted .task model (float16 is lighter/faster)
+        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+    },
+    runningMode: "VIDEO",
+    numHands: 2,
+    minHandDetectionConfidence: 0.6, // slightly lower to lock on faster
+    minTrackingConfidence: 0.6,
+  });
 
-// Initialize and confirm load
-(async () => {
-  console.log("🧠 Loading MediaPipe Hands model...");
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  console.log("✅ Hands model loaded");
-})();
+  console.log("✅ HandLandmarker ready");
 
-// --- Simple Rule-Based Gesture Classifier ---
+  // Canvas & video setup
+  videoEl = document.createElement("video");
+  videoEl.playsInline = true;
+  videoEl.muted = true;
+
+  canvasEl = document.createElement("canvas");
+  ctx = canvasEl.getContext("2d");
+  drawingUtils = new DrawingUtils(ctx);
+
+  const cameraDiv = document.querySelector(".camera-frame");
+  cameraDiv.innerHTML = "";
+  cameraDiv.appendChild(canvasEl);
+}
+
+// --- Classification (simple, robust) ---
 function classifyGesture(landmarks) {
   if (!landmarks || landmarks.length < 21) return "unknown";
 
@@ -78,114 +95,97 @@ function classifyGesture(landmarks) {
   const ringTip = landmarks[16];
   const pinkyTip = landmarks[20];
 
-  const aboveWrist = (pt) => pt.y < wrist.y;
+  const above = (p) => p.y < wrist.y;
+  const fingersUp = [indexTip, middleTip, ringTip, pinkyTip].filter(above).length;
 
-  const fingersUp =
-    [indexTip, middleTip, ringTip, pinkyTip].filter(aboveWrist).length >= 3;
-  if (fingersUp) return "hello";
+  // HELLO: open palm (≥3 fingers above wrist)
+  if (fingersUp >= 3) return "hello";
 
-  const dist =
-    Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y) +
-    Math.abs(indexTip.z - thumbTip.z);
-  if (dist < 0.08) return "ok";
+  // LOVE (🤟 heuristic): index & pinky up, middle near palm
+  const indexUp = above(indexTip);
+  const pinkyUp = above(pinkyTip);
+  const middleDown = !above(middleTip);
+  if (indexUp && pinkyUp && middleDown) return "love";
 
-  if (thumbTip.x < wrist.x && indexTip.x < wrist.x) return "love";
+  // OK: thumb & index close
+  const dist2D = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+  if (dist2D < 0.06) return "ok";
 
   return "unknown";
 }
 
-// --- Handle Detection Results ---
-hands.onResults(async (results) => {
-  canvasCtx.save();
-  canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  canvasCtx.drawImage(
-    results.image,
-    0,
-    0,
-    canvasElement.width,
-    canvasElement.height
-  );
+// --- Main inference loop ---
+async function predictLoop() {
+  if (!cameraActive) return;
 
-  const count = results.multiHandLandmarks?.length || 0;
-  console.log("🔍 Frame hands:", count);
+  const t = performance.now();
+  const result = await handLandmarker.detectForVideo(videoEl, t);
 
-  if (count > 0) {
-    for (const landmarks of results.multiHandLandmarks) {
-      drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
-        color: "#00fff0",
-        lineWidth: 3,
-      });
-      drawLandmarks(canvasCtx, landmarks, { color: "#8B5CF6", lineWidth: 1 });
+  // draw video
+  ctx.save();
+  ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+  ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
 
-      const gesture = classifyGesture(landmarks);
-      console.log("🖐 Gesture:", gesture);
+  // draw landmarks & classify
+  if (result.landmarks && result.landmarks.length > 0) {
+    for (const lm of result.landmarks) {
+      drawingUtils.drawConnectors(
+        lm,
+        HandLandmarker.HAND_CONNECTIONS,
+        { color: "#00FFF0", lineWidth: 3 }
+      );
+      drawingUtils.drawLandmarks(lm, { color: "#8B5CF6", lineWidth: 1 });
 
+      const gesture = classifyGesture(lm);
       if (gesture !== "unknown") {
         updateGestureUI(gesture);
-
         const now = Date.now();
         if (now - lastSent > SEND_INTERVAL_MS) {
           lastSent = now;
           await sendGestureToBackend(gesture);
         }
+      } else {
+        setIdleUI();
       }
     }
   } else {
-    gestureOutput.querySelector(".result-gesture").innerText = "…";
-    gestureOutput.querySelector(".result-meaning").innerText =
-      "Show your hand to the camera";
-    gestureOutput.querySelector(".result-emoji").innerText = "🖐️";
+    setIdleUI();
   }
-  canvasCtx.restore();
-});
 
-// --- Camera Setup ---
-async function startCamera() {
-  videoElement = document.createElement("video");
-  videoElement.width = 640;
-  videoElement.height = 480;
-  videoElement.autoplay = true;
-  videoElement.playsInline = true;
-  videoElement.muted = true;
-
-  canvasElement = document.createElement("canvas");
-  canvasElement.width = 640;
-  canvasElement.height = 480;
-  canvasCtx = canvasElement.getContext("2d");
-
-  const cameraDiv = document.querySelector(".camera-frame");
-  cameraDiv.innerHTML = "";
-  cameraDiv.appendChild(canvasElement);
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: 640, height: 480 },
-      audio: false,
-    });
-    videoElement.srcObject = stream;
-
-    const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        await hands.send({ image: videoElement });
-      },
-      width: 640,
-      height: 480,
-    });
-
-    await camera.start();
-    cameraActive = true;
-    console.log("✅ Camera started");
-  } catch (err) {
-    console.error("Camera error:", err);
-    alert("Please allow camera access to continue the demo.");
-  }
+  ctx.restore();
+  requestAnimationFrame(predictLoop);
 }
 
-// --- UI Helpers ---
+// --- Camera setup (keep 640x480 for FPS) ---
+async function startCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { width: 640, height: 480, facingMode: "user" },
+    audio: false,
+  });
+  videoEl.srcObject = stream;
+  await videoEl.play();
+
+  canvasEl.width = videoEl.videoWidth || 640;
+  canvasEl.height = videoEl.videoHeight || 480;
+
+  cameraActive = true;
+  console.log("✅ Camera started (Tasks API)");
+  requestAnimationFrame(predictLoop);
+}
+
+// --- UI helpers ---
 function updateGestureUI(gesture) {
-  gestureOutput.querySelector(".result-gesture").innerText =
-    gesture.toUpperCase();
+  gestureOutput.querySelector(".result-gesture").innerText = gesture.toUpperCase();
   gestureOutput.querySelector(".result-meaning").innerText = "Recognizing...";
+  gestureOutput.querySelector(".result-emoji").innerText =
+    gesture === "hello" ? "👋" : gesture === "love" ? "🤟" : gesture === "ok" ? "👌" : "🤖";
+}
+
+function setIdleUI() {
+  gestureOutput.querySelector(".result-gesture").innerText = "…";
+  gestureOutput.querySelector(".result-meaning").innerText =
+    "Show your hand to the camera";
+  gestureOutput.querySelector(".result-emoji").innerText = "🖐️";
 }
 
 function displayGeminiResponse(data) {
@@ -193,8 +193,7 @@ function displayGeminiResponse(data) {
     gestureOutput.querySelector(".result-meaning").innerText = data.text;
     gestureOutput.querySelector(".result-emoji").innerText = data.emoji || "🤖";
   } else {
-    gestureOutput.querySelector(".result-meaning").innerText =
-      "No response from AI.";
+    gestureOutput.querySelector(".result-meaning").innerText = "No response from AI.";
     gestureOutput.querySelector(".result-emoji").innerText = "🤖";
   }
 }
@@ -217,10 +216,11 @@ async function sendGestureToBackend(gesture) {
   }
 }
 
-// --- Button Logic ---
-demoButton.addEventListener("click", () => {
+// --- Button logic (unchanged) ---
+demoButton.addEventListener("click", async () => {
   if (!cameraActive) {
-    startCamera();
+    await initHandTracking();
+    await startCamera();
     demoButton.textContent = "Stop Recognition";
     demoButton.classList.add("active");
   } else {
@@ -228,16 +228,14 @@ demoButton.addEventListener("click", () => {
   }
 });
 
-// --- Smooth Scroll ---
-document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-  anchor.addEventListener("click", (e) => {
+// --- Smooth scroll & reveal (unchanged) ---
+document.querySelectorAll('a[href^="#"]').forEach((a) => {
+  a.addEventListener("click", (e) => {
     e.preventDefault();
-    const target = document.querySelector(anchor.getAttribute("href"));
+    const target = document.querySelector(a.getAttribute("href"));
     if (target) target.scrollIntoView({ behavior: "smooth" });
   });
 });
-
-// --- Scroll Animations ---
 const observerOptions = { threshold: 0.1, rootMargin: "0px 0px -50px 0px" };
 const observer = new IntersectionObserver((entries) => {
   entries.forEach((entry) => {
@@ -247,7 +245,6 @@ const observer = new IntersectionObserver((entries) => {
     }
   });
 }, observerOptions);
-
 document.querySelectorAll(".feature-card, .stat-item").forEach((el) => {
   el.style.opacity = "0";
   el.style.transform = "translateY(30px)";
@@ -255,23 +252,20 @@ document.querySelectorAll(".feature-card, .stat-item").forEach((el) => {
   observer.observe(el);
 });
 
-// --- Init ---
+// --- Init UI ---
 createParticles();
 onConfigChange(config);
 
-// --- Dynamic Style Binding ---
 function onConfigChange(cfg) {
   document.body.style.background = cfg.background_color;
   document.body.style.color = cfg.text_color;
   document.body.style.fontFamily = `${cfg.font_family}, sans-serif`;
   document.body.style.fontSize = `${cfg.font_size}px`;
-
   const logo = document.getElementById("nav-logo");
   const headline = document.getElementById("hero-headline");
   const subheadline = document.getElementById("hero-subheadline");
   const cta = document.getElementById("cta-primary");
   const footer = document.getElementById("footer-text");
-
   if (logo) logo.textContent = cfg.nav_logo;
   if (headline) headline.textContent = cfg.hero_headline;
   if (subheadline) subheadline.textContent = cfg.hero_subheadline;
