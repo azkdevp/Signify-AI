@@ -136,8 +136,12 @@ function updateGestureUI(gesture) {
   gestureOutput.querySelector(".result-gesture").innerText = g;
   gestureOutput.querySelector(".result-meaning").innerText = "Recognizing...";
   gestureOutput.querySelector(".result-emoji").innerText =
-    gesture === "hello" ? "👋" : gesture === "love" ? "🤟" : gesture === "ok" ? "👌" : "🤖";
+    gesture === "hello" ? "👋" :
+    gesture === "love"  ? "🤟" :
+    gesture === "ok"    ? "👌" :
+    gesture === "good"  ? "👍" : "🤖";
 }
+
 function setIdleUI() {
   gestureOutput.querySelector(".result-gesture").innerText = "…";
   gestureOutput.querySelector(".result-meaning").innerText =
